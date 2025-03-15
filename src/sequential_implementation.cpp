@@ -14,6 +14,7 @@ vector<int> queries;
 unordered_map<int, float> id_to_value;
 unordered_map<int, pair<float, int>> max_neighbor; 
 unordered_map<int, vector<int>> indegree_list;
+unordered_map<int, float> id_answer;
 
 void read_input() {
     string line;
@@ -53,20 +54,21 @@ void read_input() {
 
 }
 
-float get_answer(int query) {
-    float answer = id_to_value[query];
-    while(max_neighbor.count(query)) {
-        int max_neighbor_id = max_neighbor[query].second;
-        
-        answer += id_to_value[max_neighbor_id];
-        query = max_neighbor_id;
+float dfs_answer(int query) {
+    if (id_answer.count(query)) {
+        return id_answer[query];
     }
-    return answer;
+
+    if(!max_neighbor.count(query)) {
+        return id_to_value[query];
+    }
+
+    return id_answer[query] = id_to_value[query] + dfs_answer(max_neighbor[query].second);
 }
 
 void process_queries() {
     for(int i = 0; i < (int)queries.size(); i++) {
-        cout << queries[i] << ": " << get_answer(queries[i]) << "\n";
+        cout << queries[i] << ": " << dfs_answer(queries[i]) << "\n";
     }
 }
 
