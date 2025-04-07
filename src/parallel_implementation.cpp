@@ -1,6 +1,7 @@
 #include <omp.h>
 
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -69,12 +70,21 @@ float dfs_answer(int query) {
 }
 
 void process_queries() {
+  vector<float> ans(queries.size());
+
+  #pragma omp parallel for
   for (int i = 0; i < (int)queries.size(); i++) {
-    cout << queries[i] << ": " << dfs_answer(queries[i]) << "\n";
+    ans[i] = dfs_answer(queries[i]);
+  }
+
+  for (int i = 0; i < (int)ans.size(); i++) {
+    cout << queries[i] << ": " << ans[i] << "\n";
   }
 }
 
 int main() {
+  cout << setprecision(6) << fixed;
+
   read_input();
   process_queries();
 
