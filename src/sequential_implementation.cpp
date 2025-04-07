@@ -60,7 +60,7 @@ float dfs_answer(int query) {
     }
 
     if(!max_neighbor.count(query)) {
-        return id_to_value[query];
+        return id_answer[query] = id_to_value[query];
     }
 
     return id_answer[query] = id_to_value[query] + dfs_answer(max_neighbor[query].second);

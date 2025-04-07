@@ -3,7 +3,7 @@
 #include<string.h>
 
 /* Maximum size (in char) for neighbors and compute lists */
-#define MAX 1000
+#define MAX 100000
 
 typedef struct {
   int id;
@@ -73,19 +73,20 @@ float get_costly(Node *g, int id, int size) {
   
   int nd = find_by_id(g, id, size);
   if(nd < 0)
-    return max;
+    return 0;
 
   char aux[MAX];
   strcpy(aux, g[nd].neighbors);
   t = strtok_r(aux, " ", &auxptr);
 
-  do {
+  while (t != NULL) {
     int d = find_by_id(g, atoi(t), size);
     if (d >= 0 && max < g[d].value) {
       max = g[d].value;
       idmax = atoi(t);
-    }    
-  } while ((t = strtok_r(NULL, " ", &auxptr)));
+    }
+    t = strtok_r(NULL, " ", &auxptr);    
+  }
 
   float r = g[nd].value;
 
