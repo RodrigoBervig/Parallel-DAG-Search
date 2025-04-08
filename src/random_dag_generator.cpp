@@ -4,14 +4,29 @@
 #include <ctime>
 #include <algorithm>
 #include <iomanip>
+#include <unordered_set>
 
 using namespace std;
 
 const int MAX_NEIGHBORS = 50;
 
 // Generate a random float between min and max
-float rand_float(float min = 1.0, float max = 100.0) {
+float rand_float(float min = 1.0, float max = 1000.0) {
     return ((float) rand() / RAND_MAX) * (max - min) + min;
+}
+
+// Sample `count` unique integers between low (inclusive) and high (exclusive)
+vector<int> sample_unique(int low, int high, int count) {
+    unordered_set<int> seen;
+    vector<int> result;
+    count = min(count, high - low);
+    while ((int)result.size() < count) {
+        int x = rand() % (high - low) + low;
+        if (seen.insert(x).second) {
+            result.push_back(x);
+        }
+    }
+    return result;
 }
 
 int main(int argc, char* argv[]) {
@@ -32,9 +47,10 @@ int main(int argc, char* argv[]) {
     vector<int> ids(n);
     for (int i = 0; i < n; ++i)
         ids[i] = i + 1;
+    random_shuffle(ids.begin(), ids.end());
 
     // Pick compute list IDs randomly (about n/2 nodes)
-    int compute_count = rand() % (n / 2 + 1) + 1;
+    int compute_count = n / 2;
     vector<int> compute_list = ids;
     random_shuffle(compute_list.begin(), compute_list.end());
 
@@ -47,25 +63,20 @@ int main(int argc, char* argv[]) {
     // Output: each node's data
     for (int i = 0; i < n; ++i) {
         int from = ids[i];
-        int val = (int)rand_float();
-        cout << from << " " << fixed << setprecision(2) << val;
+        float val = rand_float();
+        cout << from << " " << fixed << setprecision(6) << val;
 
-        // Each node can only point to nodes that come *after* it to ensure DAG
-        int max_targets = n - i - 1;
-        int num_neighbors = max_targets > 0 ? rand() % min(MAX_NEIGHBORS, max_targets + 1) : 0;
-
-        vector<int> neighbors;
-        for (int j = i + 1; j < n; ++j)
-            neighbors.push_back(ids[j]);
-
-        random_shuffle(neighbors.begin(), neighbors.end());
-
-        if (!num_neighbors) {
-            cout << " 0"; // No neighbors
+        int remaining = n - i - 1;
+        if (remaining <= 0) {
+            cout << " 0\n";
+            continue;
         }
 
-        for (int j = 0; j < num_neighbors; ++j)
-            cout << " " << neighbors[j];
+        int num_neighbors = rand() % (min(MAX_NEIGHBORS, remaining) + 1);
+        vector<int> neighbors = sample_unique(i + 1, n, num_neighbors);
+
+        for (int to_idx : neighbors)
+            cout << " " << ids[to_idx];
         cout << "\n";
     }
 

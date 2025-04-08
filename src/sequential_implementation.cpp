@@ -1,6 +1,8 @@
 #include <omp.h>
 
 #include <algorithm>
+#include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -39,18 +41,20 @@ void read_input() {
 
     id_to_value[id] = value;
 
-    for (auto v : indegree_list[id]) {
-      if (max_neighbor[v].first < value) {
-        max_neighbor[v] = {value, id};
-      }
-    }
-
     int neighbor;
     while (ss >> neighbor) {
+      if (!neighbor) continue;
+
       if (max_neighbor[id].first < id_to_value[neighbor]) {
         max_neighbor[id] = {id_to_value[neighbor], neighbor};
       }
       indegree_list[neighbor].push_back(id);
+    }
+
+    for (auto v : indegree_list[id]) {
+      if (max_neighbor[v].first < value) {
+        max_neighbor[v] = {value, id};
+      }
     }
   }
 }
@@ -60,12 +64,12 @@ float dfs_answer(int query) {
     return id_answer[query];
   }
 
-  if (!max_neighbor.count(query)) {
+  if (!max_neighbor.count(query) || max_neighbor[query].second == 0) {
     return id_answer[query] = id_to_value[query];
   }
 
   return id_answer[query] =
-             id_to_value[query] + dfs_answer(max_neighbor[query].second);
+             (id_to_value[query] + dfs_answer(max_neighbor[query].second));
 }
 
 void process_queries() {
@@ -75,8 +79,22 @@ void process_queries() {
 }
 
 int main() {
+  cout << setprecision(6) << fixed;
+  id_to_value[0] = -1;
+
+  auto start = std::chrono::high_resolution_clock::now();
   read_input();
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> reading_elapsed = end - start;
+
+  start = std::chrono::high_resolution_clock::now();
   process_queries();
+  end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> processing_elapsed = end - start;
+
+  cout << "Reading elapsed time: " << reading_elapsed.count() << " seconds\n";
+  cout << "Processing elapsed time: " << processing_elapsed.count() << " seconds\n";
+  cout << "Total elapsed time: " << (reading_elapsed + processing_elapsed).count() << " seconds\n";
 
   return 0;
 }
