@@ -4,7 +4,6 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
-#include <mutex>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -16,99 +15,112 @@ int n;
 vector<int> queries;
 
 unordered_map<int, float> id_to_value;
-unordered_map<int, pair<float, int>> max_neighbor;
-unordered_map<int, vector<int>> indegree_list;
+unordered_map<int, vector<int>> neighbors;
 unordered_map<int, float> id_answer;
 
-// Add this:
-vector<string> raw_lines;
-mutex id_to_value_mutex, max_neighbor_mutex, indegree_mutex;
-
-// Updated read_input:
 void read_input() {
   string line;
-  getline(cin, line);
 
+  // Read the header (n and queries)
+  getline(cin, line);
   stringstream headerStream(line);
   headerStream >> n;
-
   int k;
   while (headerStream >> k) {
     queries.push_back(k);
   }
 
-  // Step 1: read all lines (sequential)
+  // Buffer all lines first
+  vector<string> lines;
   while (getline(cin, line)) {
-    raw_lines.push_back(line);
+    lines.push_back(line);
   }
 
-  // Step 2: reserve space to reduce reallocations
-  id_to_value.reserve(n);
-  max_neighbor.reserve(n);
-  indegree_list.reserve(n);
-  id_answer.reserve(n);
+  // Resize maps ahead of time for better performance (optional)
+  id_to_value.reserve(lines.size());
+  neighbors.reserve(lines.size());
 
-// Step 3: parallel parse/process
-#pragma omp parallel for schedule(dynamic)
-  for (int i = 0; i < (int)raw_lines.size(); i++) {
-    stringstream ss(raw_lines[i]);
+  // Parallel parsing using OpenMP
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < (int)lines.size(); i++) {
+    stringstream ss(lines[i]);
 
     int id;
     float value;
     ss >> id >> value;
 
-    vector<int> local_indegree;
-    vector<pair<int, float>> local_max_updates;
-
-    // Parse neighbors
+    vector<int> id_neighbor_list;
     int neighbor;
     while (ss >> neighbor) {
-      local_indegree.push_back(neighbor);
-
-      // Read-only access to id_to_value, can't be done here — we'll do it later
+      id_neighbor_list.push_back(neighbor);
     }
 
-// Step 4: critical section to update shared maps
-#pragma omp critical
+    // Safe direct write since each id is unique
+    #pragma omp critical
     {
       id_to_value[id] = value;
-
-      for (int neighbor : local_indegree) {
-        indegree_list[neighbor].push_back(id);
-
-        // Update max_neighbor[id] based on known neighbor's value
-        if (id_to_value.count(neighbor) &&
-            max_neighbor[id].first < id_to_value[neighbor]) {
-          max_neighbor[id] = {id_to_value[neighbor], neighbor};
-        }
-      }
-
-      // Update reverse links
-      for (int source : indegree_list[id]) {
-        if (max_neighbor[source].first < value) {
-          max_neighbor[source] = {value, id};
-        }
-      }
+      neighbors[id] = std::move(id_neighbor_list);
     }
   }
 }
 
 float dfs_answer(int query) {
-  if (id_answer.count(query)) {
-    return id_answer[query];
+  bool cached = false;
+  float cached_result;
+
+  // Check if result is already computed — inside a critical section
+  #pragma omp critical(id_answer_access)
+  {
+    auto it = id_answer.find(query);
+    if (it != id_answer.end()) {
+      cached = true;
+      cached_result = it->second;
+    }
   }
 
-  if (!max_neighbor.count(query)) {
-    return id_answer[query] = id_to_value[query];
+  if (cached) return cached_result;
+
+  // Find max-valued neighbor
+  float max_val = -1.0f;
+  int max_id = 0;
+  for (int v : neighbors[query]) {
+    if (id_to_value[v] > max_val) {
+      max_val = id_to_value[v];
+      max_id = v;
+    }
   }
 
-  return id_answer[query] =
-             id_to_value[query] + dfs_answer(max_neighbor[query].second);
+  float result = id_to_value[query];
+  if (max_id != 0) {
+    result += dfs_answer(max_id);  // recursive call, safe
+  }
+
+  // Store the result — inside another critical section
+  #pragma omp critical(id_answer_access)
+  {
+    id_answer[query] = result;
+  }
+
+  return result;
 }
 
+
+
 void process_queries() {
+  vector<string> output(queries.size());
+
+  #pragma omp parallel for schedule(dynamic)
   for (int i = 0; i < (int)queries.size(); i++) {
-    cout << queries[i] << ": " << dfs_answer(queries[i]) << "\n";
+    int q = queries[i];
+    float ans = dfs_answer(q);
+
+    stringstream ss;
+    ss << fixed << setprecision(6) << q << ": " << ans << "\n";
+    output[i] = ss.str();
+  }
+
+  for (const auto& line : output) {
+    cout << line;
   }
 }
 
@@ -118,10 +130,16 @@ int main() {
   auto start = std::chrono::high_resolution_clock::now();
   read_input();
   auto end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> elapsed = end - start;
-  
-  process_queries();
+  std::chrono::duration<double> reading_elapsed = end - start;
 
-  cout << "Elapsed time: " << elapsed.count() << " seconds\n";
+  start = std::chrono::high_resolution_clock::now();
+  process_queries();
+  end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> processing_elapsed = end - start;
+
+ /*  cout << "Reading elapsed time: " << reading_elapsed.count() << " seconds\n";
+  cout << "Processing elapsed time: " << processing_elapsed.count() << " seconds\n";
+  cout << "Total elapsed time: " << (reading_elapsed + processing_elapsed).count() << " seconds\n"; */
+
   return 0;
 }

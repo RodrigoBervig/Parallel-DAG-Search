@@ -15,8 +15,7 @@ int n;
 vector<int> queries;
 
 unordered_map<int, float> id_to_value;
-unordered_map<int, pair<float, int>> max_neighbor;
-unordered_map<int, vector<int>> indegree_list;
+unordered_map<int, vector<int>> neighbors;
 unordered_map<int, float> id_answer;
 
 void read_input() {
@@ -26,7 +25,6 @@ void read_input() {
   stringstream headerStream(line);
 
   headerStream >> n;
-
   int k;
   while (headerStream >> k) {
     queries.push_back(k);
@@ -40,21 +38,12 @@ void read_input() {
     ss >> id >> value;
 
     id_to_value[id] = value;
+    
+    vector<int> &id_neighbor_list = neighbors[id];
 
     int neighbor;
     while (ss >> neighbor) {
-      if (!neighbor) continue;
-
-      if (max_neighbor[id].first < id_to_value[neighbor]) {
-        max_neighbor[id] = {id_to_value[neighbor], neighbor};
-      }
-      indegree_list[neighbor].push_back(id);
-    }
-
-    for (auto v : indegree_list[id]) {
-      if (max_neighbor[v].first < value) {
-        max_neighbor[v] = {value, id};
-      }
+      id_neighbor_list.push_back(neighbor);
     }
   }
 }
@@ -64,12 +53,21 @@ float dfs_answer(int query) {
     return id_answer[query];
   }
 
-  if (!max_neighbor.count(query) || max_neighbor[query].second == 0) {
+  float max_value = -1;
+  int max_id = 0;
+
+  for (auto v : neighbors[query]) {
+    if (id_to_value[v] > max_value) {
+      max_value = id_to_value[v];
+      max_id = v;
+    }
+  }
+
+  if (max_id == 0) {
     return id_answer[query] = id_to_value[query];
   }
 
-  return id_answer[query] =
-             (id_to_value[query] + dfs_answer(max_neighbor[query].second));
+  return id_answer[query] = id_to_value[query] + dfs_answer(max_id);
 }
 
 void process_queries() {
@@ -80,7 +78,6 @@ void process_queries() {
 
 int main() {
   cout << setprecision(6) << fixed;
-  id_to_value[0] = -1;
 
   auto start = std::chrono::high_resolution_clock::now();
   read_input();
@@ -91,10 +88,10 @@ int main() {
   process_queries();
   end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> processing_elapsed = end - start;
-
+/* 
   cout << "Reading elapsed time: " << reading_elapsed.count() << " seconds\n";
   cout << "Processing elapsed time: " << processing_elapsed.count() << " seconds\n";
   cout << "Total elapsed time: " << (reading_elapsed + processing_elapsed).count() << " seconds\n";
-
+ */
   return 0;
 }
