@@ -36,7 +36,7 @@ void read_input() {
     lines.push_back(line);
   }
 
-  // Resize maps ahead of time for better performance (optional)
+  // Resize maps ahead of time for better performance
   id_to_value.reserve(lines.size());
   neighbors.reserve(lines.size());
 
@@ -56,6 +56,7 @@ void read_input() {
     }
 
     // Safe direct write since each id is unique
+    // but unordered_map is not thread safe to multipe writes
     #pragma omp critical
     {
       id_to_value[id] = value;
