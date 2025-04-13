@@ -20,35 +20,20 @@ def generate_inputs():
             subprocess.run([generator_executable, str(count)], stdout=outfile)
         print(f"✅ Generated: {input_path}")
 
-def scan_directory_to_arrays(directory_path):
-    file_data = {}
-
-    for filename in os.listdir(directory_path):
-        file_path = os.path.join(directory_path, filename)
-
-        if os.path.isfile(file_path):
-            with open(file_path, 'r', encoding='utf-8') as file:
-                lines = file.readlines()
-                file_data[filename] = [line.strip() for line in lines]
-
-    return file_data
-
-def run_executable_with_input(executable_path, input_data, omp_threads=None):
-    input_str = '\n'.join(input_data) + '\n'
+def run_executable_with_file_input(executable_path, input_file_path, omp_threads=None):
     env = os.environ.copy()
-    env["OMP_PROC_BIND"] = 'close'
-    env["OMP_PLACES"] = 'cores'
     if omp_threads is not None:
         env["OMP_NUM_THREADS"] = str(omp_threads)
 
-    result = subprocess.run(
-        [executable_path],
-        input=input_str,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=env
-    )
+    with open(input_file_path, 'r') as infile:
+        result = subprocess.run(
+            [executable_path],
+            stdin=infile,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env
+        )
 
     output_lines = result.stdout.strip().split('\n')
 
@@ -80,18 +65,18 @@ def main():
     print("🚀 Generating input files...")
     generate_inputs()
 
-    print("📂 Reading inputs...")
-    file_arrays = scan_directory_to_arrays(input_dir)
     results = []
+    input_files = sorted(os.listdir(input_dir))
 
     # Sequential
     print("⚙️ Running sequential implementation...")
-    for filename, contents in file_arrays.items():
-        reading, processing, total = run_executable_with_input(sequential_executable, contents)
+    for filename in input_files:
+        input_path = os.path.join(input_dir, filename)
+        reading, processing, total = run_executable_with_file_input(sequential_executable, input_path)
         results.append([
             os.path.basename(sequential_executable),
             filename,
-            '',  # OMP_NUM_THREADS not applicable
+            '',  # No threads for sequential
             reading,
             processing,
             total
@@ -99,9 +84,10 @@ def main():
 
     # Parallel
     print("⚙️ Running parallel implementation (OMP_NUM_THREADS 1–20)...")
-    for filename, contents in file_arrays.items():
+    for filename in input_files:
+        input_path = os.path.join(input_dir, filename)
         for threads in range(1, 21):
-            reading, processing, total = run_executable_with_input(parallel_executable, contents, omp_threads=threads)
+            reading, processing, total = run_executable_with_file_input(parallel_executable, input_path, omp_threads=threads)
             results.append([
                 os.path.basename(parallel_executable),
                 filename,
