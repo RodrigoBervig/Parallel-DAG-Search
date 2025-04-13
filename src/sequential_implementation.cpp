@@ -88,10 +88,10 @@ int main() {
   process_queries();
   end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> processing_elapsed = end - start;
-/* 
+
   cout << "Reading elapsed time: " << reading_elapsed.count() << " seconds\n";
   cout << "Processing elapsed time: " << processing_elapsed.count() << " seconds\n";
   cout << "Total elapsed time: " << (reading_elapsed + processing_elapsed).count() << " seconds\n";
- */
+ 
   return 0;
 }
